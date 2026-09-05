@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elastic-Potential Pathfinding</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-cyan: #38bdf8;
+            --accent-magenta: #f43f5e;
+            --accent-yellow: #facc15;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.25rem;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, var(--accent-cyan), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .canvas-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            width: 100%;
+            height: 450px;
+            background-color: #090d16;
+            border-radius: 8px;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .controls-hint {
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card h3.attract { color: var(--accent-cyan); }
+        .card h3.repel { color: var(--accent-magenta); }
+        .card h3.elastic { color: var(--accent-yellow); }
+
+        .card p {
+            font-size: 0.925rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .badge {
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-cyan);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        button {
+            background: var(--border-color);
+            color: var(--text-main);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Elastic-Potential Pathfinding</h1>
+        <p>A continuous physics-based alternative to traditional grid-search algorithms.</p>
+    </header>
+
+    <div class="canvas-card">
+        <canvas id="simCanvas"></canvas>
+        <div class="controls-hint">
+            <span>🖱️ <b>Drag</b> the target (green) or obstacles (red) around to see the path adapt in real-time.</span>
+            <button id="resetBtn">Reset View</button>
+        </div>
+    </div>
+
+    <div class="grid-cards">
+        <div class="card">
+            <h3 class="attract"><span class="badge">Target</span> Attractive Force</h3>
+            <p>The destination acts as a magnetic sink. It continuously pulls the terminal node, drawing the particle chain forward through open space.</p>
+        </div>
+        <div class="card">
+            <h3 class="repel"><span class="badge">Obstacles</span> Repulsive Force</h3>
+            <p>Walls and barriers exert an outward force field. As particles approach, repulsive forces push them smoothly away from geometry boundaries.</p>
+        </div>
+        <div class="card">
+            <h3 class="elastic"><span class="badge">Particles</span> Elastic Cohesion</h3>
+            <p>Adjacent particles act like spring-connected links. They exert tension on each other, naturally snapping the chain taut around corner edges.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const resetBtn = document.getElementById('resetBtn');
+
+let width, height;
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    width = canvas.width;
+    height = canvas.height;
+}
+resizeCanvas();
+
+// Simulation Parameters
+const NUM_PARTICLES = 40;
+const SPRING_STIFFNESS = 0.15;
+const DAMPING = 0.82;
+const REPULSION_RADIUS = 120;
+const REPULSION_STRENGTH = 4000;
+
+let startPoint = { x: 100, y: 0 };
+let targetPoint = { x: 0, y: 0 };
+let obstacles = [];
+let particles = [];
+let draggedNode = null;
+
+function init() {
+    resizeCanvas();
+    startPoint = { x: width * 0.15, y: height * 0.5 };
+    targetPoint = { x: width * 0.85, y: height * 0.5 };
+
+    obstacles = [
+        { x: width * 0.4, y: height * 0.4, radius: 60, isDragging: false },
+        { x: width * 0.6, y: height * 0.65, radius: 75, isDragging: false }
+    ];
+
+    particles = [];
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+        const t = i / (NUM_PARTICLES - 1);
+        particles.push({
+            x: startPoint.x + (targetPoint.x - startPoint.x) * t,
+            y: startPoint.y + (targetPoint.y - startPoint.y) * t,
+            vx: 0,
+            vy: 0
+        });
+    }
+}
+
+function updatePhysics() {
+    // Keep ends pinned
+    particles[0].x = startPoint.x;
+    particles[0].y = startPoint.y;
+    particles[0].vx = 0;
+    particles[0].vy = 0;
+
+    particles[NUM_PARTICLES - 1].x = targetPoint.x;
+    particles[NUM_PARTICLES - 1].y = targetPoint.y;
+    particles[NUM_PARTICLES - 1].vx = 0;
+    particles[NUM_PARTICLES - 1].vy = 0;
+
+    // Update inner particles
+    for (let i = 1; i < NUM_PARTICLES - 1; i++) {
+        let p = particles[i];
+        let fx = 0;
+        let fy = 0;
+
+        // Spring tension with neighbors
+        const prev = particles[i - 1];
+        const next = particles[i + 1];
+
+        fx += (prev.x - p.x) * SPRING_STIFFNESS;
+        fy += (prev.y - p.y) * SPRING_STIFFNESS;
+        fx += (next.x - p.x) * SPRING_STIFFNESS;
+        fy += (next.y - p.y) * SPRING_STIFFNESS;
+
+        // Repulsion from obstacles
+        obstacles.forEach(obs => {
+            const dx = p.x - obs.x;
+            const dy = p.y - obs.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < obs.radius + REPULSION_RADIUS && dist > 0) {
+                const force = REPULSION_STRENGTH / Math.pow(dist - obs.radius + 10, 2);
+                fx += (dx / dist) * force;
+                fy += (dy / dist) * force;
+            }
+        });
+
+        // Apply forces
+        p.vx = (p.vx + fx) * DAMPING;
+        p.vy = (p.vy + fy) * DAMPING;
+        p.x += p.vx;
+        p.y += p.vy;
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw Obstacles
+    obstacles.forEach(obs => {
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, obs.radius + REPULSION_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.05)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+    });
+
+    // Draw Particle Chain
+    ctx.beginPath();
+    ctx.moveTo(particles[0].x, particles[0].y);
+    for (let i = 1; i < NUM_PARTICLES; i++) {
+        ctx.lineTo(particles[i].x, particles[i].y);
+    }
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Draw Individual Particles
+    particles.forEach((p, idx) => {
+        if (idx === 0 || idx === NUM_PARTICLES - 1) return;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+    });
+
+    // Draw Start & Target
+    ctx.beginPath();
+    ctx.arc(startPoint.x, startPoint.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#facc15';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(targetPoint.x, targetPoint.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+}
+
+function loop() {
+    updatePhysics();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Interaction Controls
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+    };
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    const pos = getMousePos(e);
+
+    // Check target interaction
+    if (Math.hypot(pos.x - targetPoint.x, pos.y - targetPoint.y) < 25) {
+        draggedNode = targetPoint;
+        return;
+    }
+
+    // Check obstacle interaction
+    obstacles.forEach(obs => {
+        if (Math.hypot(pos.x - obs.x, pos.y - obs.y) < obs.radius) {
+            draggedNode = obs;
+        }
+    });
+});
+
+canvas.addEventListener('pointermove', (e) => {
+    if (draggedNode) {
+        const pos = getMousePos(e);
+        draggedNode.x = pos.x;
+        draggedNode.y = pos.y;
+    }
+});
+
+window.addEventListener('pointerup', () => draggedNode = null);
+resetBtn.addEventListener('click', init);
+
+init();
+loop();
+</script>
+</body>
+</html>
