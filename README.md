@@ -5,6 +5,8 @@ A continuous physics-based alternative to traditional grid-search algorithms.
 
 👉 **[CLICK HERE TO RUN THE LIVE DEMO](https://sighthough.github.io/Elastic-Potential-Pathfinding/)**
 
+feel free to rip anything you want from that demo
+
 
 ```markdown
 # 🌀 Elastic-Potential Pathfinding (EPP)
