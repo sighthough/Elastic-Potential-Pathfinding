@@ -1,6 +1,10 @@
 # Elastic-Potential-Pathfinding
 A continuous physics-based alternative to traditional grid-search algorithms.
 
+*Co-authored by [sighthough](https://youtu.be/UtPiUGwu-0Q) and Gemini.*
+
+👉 **[CLICK HERE TO RUN THE LIVE DEMO](https://sighthough.github.io/Elastic-Potential-Pathfinding/)**
+
 
 ```markdown
 # 🌀 Elastic-Potential Pathfinding (EPP)
