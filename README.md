@@ -2,7 +2,29 @@
 A continuous physics-based alternative to traditional grid-search algorithms.
 
 
-🌀 Elastic-Potential Pathfinding (EPP)A continuous, physics-driven alternative to traditional graph-search algorithms (A, Dijkstra) for dynamic path generation, obstacle avoidance, and robotic trajectory planning.*📌 OverviewElastic-Potential Pathfinding (EPP) replaces discrete graph-search algorithms with a physical simulation model. Instead of traversing grid cells or waypoints, EPP connects the start and end coordinates with an elastic particle chain. The chain is governed by three simultaneously acting physical forces:Target Attraction ($F_a$): Pinning mechanics pull the terminal path particle toward the target destination.Obstacle Repulsion ($F_r$): Obstacles generate inverse-square distance force fields that push particles out of collision zones.Internal Elasticity ($F_s$): Hooke's-law spring connections between adjacent particles maintain path continuity and pull the chain taut around corners.The resulting path isn't "searched"—it settles naturally into the lowest potential energy state.📐 Mechanics & Physics ModelPlaintext                     ATTRACTIVE FORCE (Target)
+```markdown
+# 🌀 Elastic-Potential Pathfinding (EPP)
+
+> **A continuous, physics-driven alternative to traditional graph-search algorithms (A*, Dijkstra) for dynamic path generation, obstacle avoidance, and robotic trajectory planning.**
+
+---
+
+## 📌 Overview
+
+**Elastic-Potential Pathfinding (EPP)** replaces discrete graph-search algorithms with a physical simulation model. Instead of traversing grid cells or waypoints, EPP connects the start and end coordinates with an elastic particle chain. The chain is governed by three simultaneously acting physical forces:
+
+1. **Target Attraction ($\vec{F}_a$):** Pinning mechanics pull the terminal path particle toward the target destination.
+2. **Obstacle Repulsion ($\vec{F}_r$):** Obstacles generate inverse-square distance force fields that push particles out of collision zones.
+3. **Internal Elasticity ($\vec{F}_s$):** Hooke's-law spring connections between adjacent particles maintain path continuity and pull the chain taut around corners.
+
+The resulting path isn't "searched"—it **settles naturally** into the lowest potential energy state.
+
+---
+
+## 📐 Mechanics & Physics Model
+
+```text
+                     ATTRACTIVE FORCE (Target)
                                   │
                                   ▼
                         [ Target Point (T) ]
@@ -18,7 +40,43 @@ A continuous physics-based alternative to traditional grid-search algorithms.
                  ● (Particle 1)
                 /
       [ Start Point (S) ]
-1. Spring Cohesion (Hooke's Law)Between consecutive particles $p_i$ and $p_{i+1}$, tension maintains path structural integrity:$$F_s = k \cdot (x_{i+1} - x_i) + k \cdot (x_{i-1} - x_i)$$Where $k$ is the spring stiffness constant.2. Obstacle Repulsion (Potential Field)For any obstacle $O_j$ with collision radius $R_o$ and influence boundary $R_{\text{rep}}$, the repulsive force vector acting on particle $p_i$ is:$$F_r = \begin{cases} \frac{\alpha}{(d - R_o + \epsilon)^2} \cdot \hat{d}, & d < R_o + R_{\text{rep}} \\ 0, & d \ge R_o + R_{\text{rep}} \end{cases}$$Where $d = \Vert{}x_i - x_{O_j}\Vert{}$, $\hat{d}$ is the normalized directional unit vector away from the obstacle center, $\alpha$ is the repulsion magnitude, and $\epsilon$ prevents division-by-zero.3. Damping & Velocity IntegrationTo prevent infinite oscillations around corners, kinetic energy is damped:$$v_i^{(t+1)} = \mu \cdot \left( v_i^{(t)} + \frac{F_{\text{total}}}{m} \Delta t \right)$$$$x_i^{(t+1)} = x_i^{(t)} + v_i^{(t+1)} \Delta t$$Where $\mu \in (0, 1)$ is the damping coefficient (typically $0.80 - 0.88$).🎨 Visual System ArchitectureField Geometry & Repulsion BubblesPlaintext+-------------------------------------------------------------+
+
+```
+
+### 1. Spring Cohesion (Hooke's Law)
+
+Between consecutive particles $p_i$ and $p_{i+1}$, tension maintains path structural integrity:
+
+$$\vec{F}_s = k \cdot (\vec{x}_{i+1} - \vec{x}_i) + k \cdot (\vec{x}_{i-1} - \vec{x}_i)$$
+
+*Where $k$ is the spring stiffness constant.*
+
+### 2. Obstacle Repulsion (Potential Field)
+
+For any obstacle $O_j$ with collision radius $R_o$ and influence boundary $R_{\text{rep}}$, the repulsive force vector acting on particle $p_i$ is:
+
+$$\vec{F}_r = \begin{cases} \frac{\alpha}{(d - R_o + \epsilon)^2} \cdot \hat{d}, & d < R_o + R_{\text{rep}} \\ 0, & d \ge R_o + R_{\text{rep}} \end{cases}$$
+
+*Where $d = \Vert{}\vec{x}_i - \vec{x}_{O_j}\Vert{}$, $\hat{d}$ is the normalized directional unit vector away from the obstacle center, $\alpha$ is the repulsion magnitude, and $\epsilon$ prevents division-by-zero.*
+
+### 3. Damping & Velocity Integration (Verlet / Euler)
+
+To prevent infinite oscillations around corners, kinetic energy is damped:
+
+$$\vec{v}_i^{(t+1)} = \mu \cdot \left( \vec{v}_i^{(t)} + \frac{\vec{F}_{\text{total}}}{m} \Delta t \right)$$
+
+$$\vec{x}_i^{(t+1)} = \vec{x}_i^{(t)} + \vec{v}_i^{(t+1)} \Delta t$$
+
+*Where $\mu \in (0, 1)$ is the damping coefficient (typically $0.80 - 0.88$).*
+
+---
+
+## 🎨 Visual System Architecture
+
+### Field Geometry & Repulsion Bubbles
+
+```text
++-------------------------------------------------------------+
 |                Repulsion Field Radius (R_rep)               |
 |            . . . . . . . . . . . . . . . . . . .            |
 |          .                                       .          |
@@ -35,7 +93,13 @@ A continuous physics-based alternative to traditional grid-search algorithms.
                     │  Repulsion (F_r)    │
        ───────●─────┴─────────────────────┴─────●───────
               Particle Chain Bends Outside Perimeter
-Traditional A* vs. Elastic-Potential PathfindingPlaintext  TRADITIONAL GRID-SEARCH (A* / Dijkstra)      ELASTIC-POTENTIAL PATHFINDING (EPP)
+
+```
+
+### Traditional A* vs. Elastic-Potential Pathfinding
+
+```text
+  TRADITIONAL GRID-SEARCH (A* / Dijkstra)      ELASTIC-POTENTIAL PATHFINDING (EPP)
   +---+---+---+---+---+---+---+               +-----------------------------------+
   | S | - | - |   |   |   |   |               | (S) ●                             |
   +---+---+---+---+---+---+---+               |      \                            |
@@ -44,7 +108,15 @@ Traditional A* vs. Elastic-Potential PathfindingPlaintext  TRADITIONAL GRID-SEAR
   |   |   | X | X | - | - | T |               |             ●──────────┐          |
   +---+---+---+---+---+---+---+               |                        └──● (T)   |
   (Stepped, grid-bound 90°/45° angles)        (Continuous, smooth physical trajectory)
-Handling Local Minima Traps (U-Shaped Obstacles)When a particle chain encounters a concave obstacle facing the target, equal opposing forces can cause a standstill:Plaintext    LOCAL MINIMA DEADLOCK                    TANGENTIAL REDIRECTION
+
+```
+
+### Handling Local Minima Traps (U-Shaped Obstacles)
+
+When a particle chain encounters a concave obstacle facing the target, equal opposing forces can cause a standstill:
+
+```text
+    LOCAL MINIMA DEADLOCK                    TANGENTIAL REDIRECTION
     +-------------------+                    +-------------------+
     |     Particle      |                    |     Particle      |
     |        ●          |                    |        ●────►     |
@@ -54,7 +126,17 @@ Handling Local Minima Traps (U-Shaped Obstacles)When a particle chain encounters
     |   [  Target  ]    |                    |   [  Target  \ ]  |
     +-------------------+                    +-------------------+
     Net Force F = 0 (Stuck)                  Tangential Slide Vector Applied
-🚀 Quickstart Base ImplementationsOption 1: Standalone JavaScript Engine Module (ElasticPathfinder.js)JavaScript/**
+
+```
+
+---
+
+## 🚀 Quickstart Base Implementations
+
+### Option 1: Standalone JavaScript Engine Module (`ElasticPathfinder.js`)
+
+```javascript
+/**
  * Elastic-Potential Pathfinding Engine
  * Zero external dependencies. Browser & Node.js compatible.
  */
@@ -92,7 +174,7 @@ class ElasticPathfinder {
     step() {
         if (this.particles.length === 0) return;
 
-        // Pin boundaries
+        // Pin boundary endpoints
         this.particles[0].x = this.start.x;
         this.particles[0].y = this.start.y;
         this.particles[0].vx = 0;
@@ -152,10 +234,19 @@ class ElasticPathfinder {
     }
 }
 
+// Export for Node / ES Modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ElasticPathfinder;
 }
-Option 2: Standalone Python Module (elastic_pathfinder.py)Pythonimport math
+
+```
+
+---
+
+### Option 2: Standalone Python Module (`elastic_pathfinder.py`)
+
+```python
+import math
 from typing import List, Dict, Tuple
 
 class ElasticPathfinder:
@@ -249,4 +340,36 @@ if __name__ == "__main__":
         
     path = solver.get_path()
     print(f"Path settled after 100 iterations. Midpoint: {path[len(path)//2]}")
-⚙️ Configuration Tuning ParametersParameterTypeDefaultDescriptionnumParticlesint30Number of node links in the rubber-band chain. Higher values improve spatial smoothness at slight computational cost.stiffness ($k$)float0.15Spring tension coefficient. Higher values snap paths tighter around obstacles; lower values allow laxer curves.damping ($\mu$)float0.82Kinetic energy dissipation factor per frame ($0.0 - 1.0$). Prevents infinite string jitter/oscillation.repulsionRadiusfloat100.0Outer distance boundary where an obstacle begins pushing particles away.repulsionStrengthfloat4000.0Force scalar magnitude for obstacle rejection. Ramps up quadratically as distance decreases.💡 Practical Use Cases🎮 Game Development: Smooth enemy movement around moving obstacles without recalculating complex navmeshes.🤖 Robotics & UAVs: Real-time trajectory adjustment for mobile rovers and drones encountering unseen obstacles.🎥 Dynamic Camera Rails: Automated virtual camera movement in 3D environments that gracefully slides past scenery without clipping through geometry.🎨 Generative Art & FX: Interactive particle strings, fluid cable simulation, and ribbon mechanics.📄 LicenseMIT License. Free to use, modify, and distribute for personal, academic, or commercial projects.
+
+```
+
+---
+
+## ⚙️ Configuration Tuning Parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `numParticles` | `int` | `30` | Number of node links in the rubber-band chain. Higher values improve spatial smoothness at slight computational cost. |
+| `stiffness` ($k$) | `float` | `0.15` | Spring tension coefficient. Higher values snap paths tighter around obstacles; lower values allow laxer curves. |
+| `damping` ($\mu$) | `float` | `0.82` | Kinetic energy dissipation factor per frame ($0.0 - 1.0$). Prevents infinite string jitter/oscillation. |
+| `repulsionRadius` | `float` | `100.0` | Outer distance boundary where an obstacle begins pushing particles away. |
+| `repulsionStrength` | `float` | `4000.0` | Force scalar magnitude for obstacle rejection. Ramps up quadratically as distance decreases. |
+
+---
+
+## 💡 Practical Use Cases
+
+* **🎮 Game Development:** Smooth enemy movement around moving obstacles without recalculating complex navmeshes.
+* **🤖 Robotics & UAVs:** Real-time trajectory adjustment for mobile rovers and drones encountering unseen obstacles.
+* **🎥 Dynamic Camera Rails:** Automated virtual camera movement in 3D environments that gracefully slides past scenery without clipping through geometry.
+* **🎨 Generative Art & FX:** Interactive particle strings, fluid cable simulation, and ribbon mechanics.
+
+---
+
+## 📄 License
+
+MIT License. Free to use, modify, and distribute for personal, academic, or commercial projects.
+
+```
+
+```
